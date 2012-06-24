@@ -1,0 +1,28 @@
+Phase 1 (bare necessities)
+-------
+- One type of component
+- Each component is an independent leaf that specifies all parameters
+- Users activate/deactivate individual feeds
+
+
+Phase 2 (useful product)
+-------
+- User can activate/deactivate feeds individually or by groups
+- Three types of components:
+  - JVM (JMX URL)
+  - MBean descriptor (object name and attribute)
+  - Feed (JVM + MBean descriptor)
+- Adjustable feed rates
+- Non-numerical feeds
+
+
+Phase 3 (enterprise-ready)
+-------
+- User can build complex trees of operations that use feeds as inputs
+- Feed collector is separate from MCT
+  - usable by multiple instances
+  - can run even if MCT is not
+- Feed data is cached locally
+- Feed collector can be controlled via MCT
+- Detect duplicate components
+- Permissions
