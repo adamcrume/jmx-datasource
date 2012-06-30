@@ -2,6 +2,7 @@ package com.adamcrume.jmxmon.telemetry;
 
 import gov.nasa.arc.mct.api.feed.BufferFullException;
 import gov.nasa.arc.mct.api.feed.FeedDataArchive;
+import gov.nasa.arc.mct.components.AbstractComponent;
 import gov.nasa.arc.mct.components.FeedProvider;
 import gov.nasa.arc.mct.components.FeedProvider.RenderingInfo;
 
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -228,8 +230,18 @@ public class DataPoller {
 
 
         public Feed(TelemetryComponent component) throws IOException, MalformedObjectNameException {
-            TelemetryFeed model = component.getModel();
-            String jmxURL = model.getJmxURL();
+            List<AbstractComponent> subs = component.getComponents();
+            BeanDescriptorComponent bd = null;
+            JVMComponent jvm = null;
+            for(AbstractComponent c : subs) {
+                if(c instanceof BeanDescriptorComponent) {
+                    bd = (BeanDescriptorComponent) c;
+                } else if(c instanceof JVMComponent) {
+                    jvm = (JVMComponent) c;
+                }
+            }
+
+            String jmxURL = jvm.getModel().getJmxURL();
             synchronized(connections) {
                 MBeanServerConnection connection = connections.get(jmxURL);
                 if(connection == null) {
@@ -240,8 +252,8 @@ public class DataPoller {
                 }
                 this.connection = connection;
             }
-            this.attribute = model.getAttribute();
-            this.mbean = new ObjectName(model.getMbean());
+            this.attribute = bd.getModel().getAttribute();
+            this.mbean = new ObjectName(bd.getModel().getBean());
             this.id = component.getId();
         }
 

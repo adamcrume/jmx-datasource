@@ -1,8 +1,11 @@
 package com.adamcrume.jmxmon.view;
 
 import static com.adamcrume.jmxmon.JMXMon.bundle;
+import gov.nasa.arc.mct.api.persistence.OptimisticLockException;
 import gov.nasa.arc.mct.components.AbstractComponent;
 import gov.nasa.arc.mct.gui.View;
+import gov.nasa.arc.mct.platform.spi.PersistenceProvider;
+import gov.nasa.arc.mct.platform.spi.PlatformAccess;
 import gov.nasa.arc.mct.services.component.ViewInfo;
 
 import java.awt.GridBagConstraints;
@@ -22,6 +25,8 @@ import com.adamcrume.jmxmon.telemetry.BeanDescriptorComponent;
 @SuppressWarnings("serial")
 public final class BeanDescriptorEditView extends View {
     private JTextField beanField;
+
+    private JTextField attributeField;
 
     private BeanDescriptor bean = ((BeanDescriptorComponent) getManifestedComponent()).getModel();
 
@@ -45,12 +50,17 @@ public final class BeanDescriptorEditView extends View {
 
         JLabel beanLabel = new JLabel(bundle.getString("bean_descriptor.bean.label"));
         panel.add(beanLabel, gbcLabel);
-
         beanField = new JTextField();
-        beanField.setText(bean.getBean());
         beanField.setToolTipText(bundle.getString("bean_descriptor.bean.tooltip"));
         beanLabel.setLabelFor(beanField);
         panel.add(beanField, gbcField);
+
+        JLabel attributeLabel = new JLabel(bundle.getString("bean_descriptor.attribute.label"));
+        panel.add(attributeLabel, gbcLabel);
+        attributeField = new JTextField();
+        attributeField.setToolTipText(bundle.getString("bean_descriptor.attribute.tooltip"));
+        attributeLabel.setLabelFor(attributeField);
+        panel.add(attributeField, gbcField);
 
         GridBagConstraints gbcButton = (GridBagConstraints) gbcField.clone();
         gbcButton.fill = GridBagConstraints.NONE;
@@ -62,11 +72,24 @@ public final class BeanDescriptorEditView extends View {
             public void actionPerformed(ActionEvent e) {
                 AbstractComponent component = getManifestedComponent();
                 bean.setBean(beanField.getText());
-                component.save();
+                bean.setAttribute(attributeField.getText());
+
+                PersistenceProvider provider = PlatformAccess.getPlatform().getPersistenceProvider();
+                boolean successfulAction = false;
+                try {
+                    provider.startRelatedOperations();
+                    component.save();
+                    successfulAction = true;
+                } catch(OptimisticLockException e2) {
+                    e2.printStackTrace(); // TODO
+                } finally {
+                    provider.completeRelatedOperations(successfulAction);
+                }
             }
         });
 
         add(panel);
+        updateMonitoredGUI();
     }
 
 
@@ -74,5 +97,6 @@ public final class BeanDescriptorEditView extends View {
     public void updateMonitoredGUI() {
         BeanDescriptor bean = ((BeanDescriptorComponent) getManifestedComponent()).getModel();
         beanField.setText(bean.getBean());
+        attributeField.setText(bean.getAttribute());
     }
 }

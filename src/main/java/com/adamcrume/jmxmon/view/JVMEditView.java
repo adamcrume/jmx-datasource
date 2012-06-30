@@ -1,8 +1,11 @@
 package com.adamcrume.jmxmon.view;
 
 import static com.adamcrume.jmxmon.JMXMon.bundle;
+import gov.nasa.arc.mct.api.persistence.OptimisticLockException;
 import gov.nasa.arc.mct.components.AbstractComponent;
 import gov.nasa.arc.mct.gui.View;
+import gov.nasa.arc.mct.platform.spi.PersistenceProvider;
+import gov.nasa.arc.mct.platform.spi.PlatformAccess;
 import gov.nasa.arc.mct.services.component.ViewInfo;
 
 import java.awt.GridBagConstraints;
@@ -47,7 +50,6 @@ public final class JVMEditView extends View {
         panel.add(jmxURLLabel, gbcLabel);
 
         jmxURLField = new JTextField();
-        jmxURLField.setText(jvm.getJmxURL());
         jmxURLField.setToolTipText(bundle.getString("jvm.jmxURL.tooltip"));
         jmxURLLabel.setLabelFor(jmxURLField);
         panel.add(jmxURLField, gbcField);
@@ -62,11 +64,23 @@ public final class JVMEditView extends View {
             public void actionPerformed(ActionEvent e) {
                 AbstractComponent component = getManifestedComponent();
                 jvm.setJmxURL(jmxURLField.getText());
-                component.save();
+
+                PersistenceProvider provider = PlatformAccess.getPlatform().getPersistenceProvider();
+                boolean successfulAction = false;
+                try {
+                    provider.startRelatedOperations();
+                    component.save();
+                    successfulAction = true;
+                } catch(OptimisticLockException e2) {
+                    e2.printStackTrace(); // TODO
+                } finally {
+                    provider.completeRelatedOperations(successfulAction);
+                }
             }
         });
 
         add(panel);
+        updateMonitoredGUI();
     }
 
 

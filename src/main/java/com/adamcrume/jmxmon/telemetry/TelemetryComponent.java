@@ -23,7 +23,7 @@ public class TelemetryComponent extends AbstractComponent implements
 
 	@Override
 	public boolean isLeaf() {
-		return true;
+		return false;
 	}
 
 	@Override
