@@ -4,12 +4,15 @@ Bundle-Name: JMX Monitor
 Bundle-SymbolicName: com.adamcrume.jmxmon
 Bundle-Version: 0.0.1
 Import-Package: gov.nasa.arc.mct.api.feed;version="1.1.0",
+ gov.nasa.arc.mct.api.persistence;version="1.1.0",
  gov.nasa.arc.mct.components;version="1.1.0",
  gov.nasa.arc.mct.gui;version="1.1.0",
+ gov.nasa.arc.mct.platform.spi;version="1.1.0",
  gov.nasa.arc.mct.policy;version="1.1.0",
  gov.nasa.arc.mct.roles.events;version="1.1.0",
  gov.nasa.arc.mct.services.activity;version="1.1.0",
  gov.nasa.arc.mct.services.component;version="1.1.0",
+ javax.management.openmbean,
  javax.management.remote,
  org.osgi.framework;version="1.4.0"
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6

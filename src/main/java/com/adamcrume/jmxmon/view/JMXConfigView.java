@@ -1,8 +1,11 @@
 package com.adamcrume.jmxmon.view;
 
 import static com.adamcrume.jmxmon.JMXMon.bundle;
+import gov.nasa.arc.mct.api.persistence.OptimisticLockException;
 import gov.nasa.arc.mct.components.AbstractComponent;
 import gov.nasa.arc.mct.gui.View;
+import gov.nasa.arc.mct.platform.spi.PersistenceProvider;
+import gov.nasa.arc.mct.platform.spi.PlatformAccess;
 import gov.nasa.arc.mct.services.component.ViewInfo;
 
 import java.awt.GridBagConstraints;
@@ -52,12 +55,31 @@ public final class JMXConfigView extends View {
 
         JLabel descriptionLabel = new JLabel(bundle.getString("feed.description.label"));
         panel.add(descriptionLabel, gbcLabel);
-
         descriptionField = new JTextField();
-        descriptionField.setText(model.getDescription());
         descriptionField.setToolTipText(bundle.getString("feed.description.tooltip"));
         descriptionLabel.setLabelFor(descriptionField);
         panel.add(descriptionField, gbcField);
+
+        JLabel jmxURLLabel = new JLabel(bundle.getString("feed.jmxurl.label"));
+        panel.add(jmxURLLabel, gbcLabel);
+        jmxURLField = new JTextField();
+        jmxURLField.setToolTipText(bundle.getString("feed.jmxurl.tooltip"));
+        jmxURLLabel.setLabelFor(jmxURLField);
+        panel.add(jmxURLField, gbcField);
+
+        JLabel mbeanLabel = new JLabel(bundle.getString("feed.mbean.label"));
+        panel.add(mbeanLabel, gbcLabel);
+        mbeanField = new JTextField();
+        mbeanField.setToolTipText(bundle.getString("feed.mbean.tooltip"));
+        mbeanLabel.setLabelFor(mbeanField);
+        panel.add(mbeanField, gbcField);
+
+        JLabel attributeLabel = new JLabel(bundle.getString("feed.attribute.label"));
+        panel.add(attributeLabel, gbcLabel);
+        attributeField = new JTextField();
+        attributeField.setToolTipText(bundle.getString("feed.attribute.tooltip"));
+        attributeLabel.setLabelFor(attributeField);
+        panel.add(attributeField, gbcField);
 
         GridBagConstraints gbcButton = (GridBagConstraints) gbcField.clone();
         gbcButton.fill = GridBagConstraints.NONE;
@@ -67,19 +89,36 @@ public final class JMXConfigView extends View {
         saveButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                AbstractComponent component = getManifestedComponent();
+                final AbstractComponent component = getManifestedComponent();
                 model.setDescription(descriptionField.getText());
-                component.save();
+                model.setJmxURL(jmxURLField.getText());
+                model.setMbean(mbeanField.getText());
+                model.setAttribute(attributeField.getText());
+
+                PersistenceProvider provider = PlatformAccess.getPlatform().getPersistenceProvider();
+                boolean successfulAction = false;
+                try {
+                    provider.startRelatedOperations();
+                    component.save();
+                    successfulAction = true;
+                } catch (OptimisticLockException e2) {
+                    e2.printStackTrace(); // TODO
+                } finally {
+                    provider.completeRelatedOperations(successfulAction);
+                }
             }
         });
 
         add(panel);
+        updateMonitoredGUI();
     }
 
 
     @Override
     public void updateMonitoredGUI() {
-        TelemetryFeed mr = ((TelemetryComponent) getManifestedComponent()).getModel();
-        descriptionField.setText(mr.getDescription());
+        descriptionField.setText(model.getDescription());
+        jmxURLField.setText(model.getJmxURL());
+        mbeanField.setText(model.getMbean());
+        attributeField.setText(model.getAttribute());
     }
 }

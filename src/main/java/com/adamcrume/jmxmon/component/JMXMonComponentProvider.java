@@ -13,6 +13,8 @@ import java.util.Collection;
 import java.util.Collections;
 
 import com.adamcrume.jmxmon.actions.AboutAction;
+import com.adamcrume.jmxmon.actions.ActivateAction;
+import com.adamcrume.jmxmon.actions.DeactivateAction;
 import com.adamcrume.jmxmon.telemetry.TelemetryComponent;
 import com.adamcrume.jmxmon.view.JMXConfigView;
 
@@ -48,7 +50,17 @@ public class JMXMonComponentProvider extends AbstractComponentProvider {
         return Arrays.asList(
                 new MenuItemInfo("/help/additions", // NOI18N
                         "ABOUT_JMXMON_ACTION", //NO18N
-                        MenuItemType.NORMAL, AboutAction.class)
+                        MenuItemType.NORMAL, AboutAction.class),
+                new MenuItemInfo(
+                        "/objects/additions", // NOI18N
+                        "ACTIVATE_ACTION", //NO18N
+                        MenuItemType.NORMAL,
+                        ActivateAction.class),
+                new MenuItemInfo(
+                        "/objects/additions", // NOI18N
+                        "DEACTIVATE_ACTION", //NO18N
+                        MenuItemType.NORMAL,
+                        DeactivateAction.class)
         );
     }
 }

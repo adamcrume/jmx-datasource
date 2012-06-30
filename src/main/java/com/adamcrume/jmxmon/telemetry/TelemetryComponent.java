@@ -138,7 +138,7 @@ public class TelemetryComponent extends AbstractComponent implements
         fields.add(mbean);
 
         // TODO: Add validation
-        PropertyDescriptor attribute = new PropertyDescriptor(bundle.getString("field.attribute.label"),
+        PropertyDescriptor attribute = new PropertyDescriptor(bundle.getString("feed.attribute.label"),
                 new StringPropertyEditor(model, "attribute"), VisualControlDescriptor.TextField);
         attribute.setFieldMutable(true);
         fields.add(attribute);

@@ -7,14 +7,11 @@ import gov.nasa.arc.mct.components.FeedProvider.RenderingInfo;
 
 import java.awt.Color;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
-import java.lang.management.OperatingSystemMXBean;
-import java.lang.management.RuntimeMXBean;
-import java.lang.management.ThreadMXBean;
 import java.net.MalformedURLException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -26,6 +23,7 @@ import javax.management.MBeanServerConnection;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.ReflectionException;
+import javax.management.openmbean.CompositeDataSupport;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
@@ -39,15 +37,31 @@ public class DataPoller {
 
     private static final Color LOS_COLOR = new Color(0, 72, 217);
 
+    @Deprecated
+    private static DataPoller instance;
+
     private Thread thread;
 
     private FeedDataArchive archive;
+
+    private Map<TelemetryComponent, Feed> activeComponents = new HashMap<TelemetryComponent, Feed>();
+
+    private Map<TelemetryComponent, Feed> recentlyStoppedComponents = new HashMap<TelemetryComponent, Feed>();
+
+    private Map<String, MBeanServerConnection> connections = new HashMap<String, MBeanServerConnection>();
+
+
+    @Deprecated
+    public static DataPoller getInstance() {
+        return instance;
+    }
 
 
     // called by declarative services
     @SuppressWarnings("unused")
     private void activate(BundleContext context) {
         LOGGER.info("Activating " + getClass());
+        instance = this;
         thread = new Thread(new Poller());
         thread.start();
     }
@@ -81,106 +95,194 @@ public class DataPoller {
         @Override
         public void run() {
             try {
-                // TODO: Support customizable JMX URLs
-                JMXServiceURL url = new JMXServiceURL("service:jmx:rmi:///jndi/rmi://:9998/jmxrmi");
-                JMXConnector jmxc = JMXConnectorFactory.connect(url, null);
-
-                MBeanServerConnection mbsc = jmxc.getMBeanServerConnection();
-
-                // TODO: Support customizable MBeans and attributes
-                MemoryMXBean membean = ManagementFactory.newPlatformMXBeanProxy(mbsc, "java.lang:type=Memory",
-                        MemoryMXBean.class);
-                ObjectName osbeanName = new ObjectName("java.lang:type=OperatingSystem");
-                ThreadMXBean threadbean = ManagementFactory.newPlatformMXBeanProxy(mbsc, "java.lang:type=Threading",
-                        ThreadMXBean.class);
-                OperatingSystemMXBean osbean = ManagementFactory.newPlatformMXBeanProxy(mbsc,
-                        "java.lang:type=OperatingSystem", OperatingSystemMXBean.class);
-                RuntimeMXBean runtimebean = ManagementFactory.newPlatformMXBeanProxy(mbsc, "java.lang:type=Runtime",
-                        RuntimeMXBean.class);
-                int nCPUs = osbean.getAvailableProcessors();
-                long prevUptime = runtimebean.getUptime();
-                long prevCpuTime = (long) (Long) mbsc.getAttribute(osbeanName, "ProcessCpuTime");
-                double prevValue = Double.NaN;
                 int count = 0;
                 int used = 0;
                 while(true) {
-                    long uptime = runtimebean.getUptime();
-                    long elapsedTime = uptime - prevUptime;
-                    long cpuTime = (long) (Long) mbsc.getAttribute(osbeanName, "ProcessCpuTime");
-                    long elapsedCPUTime = cpuTime - prevCpuTime;
-                    double usage = elapsedCPUTime / 1000000.0 / (elapsedTime * nCPUs);
-
-
-                    // TODO: Flush old data
-                    long time = System.currentTimeMillis();
-                    double value = membean.getHeapMemoryUsage().getUsed();
-                    if(value != prevValue) {
-                        addDatum(time, value, true);
-                        used++;
+                    Set<Feed> feeds;
+                    Set<Feed> feedsToStop;
+                    synchronized(activeComponents) {
+                        feeds = new HashSet<Feed>(activeComponents.values());
+                        feedsToStop = new HashSet<Feed>(recentlyStoppedComponents.values());
+                        recentlyStoppedComponents.clear();
                     }
-                    count++;
+                    for(Feed feed : feeds) {
+                        boolean reachable = false;
+                        Object value = null;
+                        try {
+                            MBeanServerConnection connection = feed.getConnection();
+                            String attribute = feed.getAttribute();
+                            String[] parts = attribute.split("\\.");
+                            value = connection.getAttribute(feed.getMbean(), parts[0]);
+                            for(int i = 1; i < parts.length; i++) {
+                                value = ((CompositeDataSupport) value).get(parts[i]);
+                            }
+                            reachable = true;
+                        } catch(MalformedURLException e) {
+                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
+                        } catch(AttributeNotFoundException e) {
+                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
+                        } catch(InstanceNotFoundException e) {
+                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
+                        } catch(MBeanException e) {
+                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
+                        } catch(ReflectionException e) {
+                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
+                        } catch(IOException e) {
+                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
+                        }
+                        long time = System.currentTimeMillis();
+                        Object oldValue = feed.getOldValue();
+                        if(!equals(value, oldValue) || reachable != feed.isOldReachable()) {
+                            if(!reachable) {
+                                // This just reduces the occurrence of invalid string encodings.
+                                value = oldValue;
+                            }
+                            addDatum(feed.getId(), time, value, reachable);
+                            used++;
+                        }
+                        feed.setOldValue(oldValue);
+                        feed.setOldReachable(reachable);
+                        count++;
+                    }
+                    for(Feed feed : feedsToStop) {
+                        addDatum(feed.getId(), System.currentTimeMillis() + 1, 0, false);
+                    }
                     LOGGER.finest("Using " + (100.0 * used / count) + "% of values");
-
-
-                    prevUptime = uptime;
-                    prevCpuTime = cpuTime;
-                    prevValue = value;
                     Thread.sleep(1000);
                 }
             } catch(InterruptedException e) {
                 LOGGER.info(getClass() + " Interrupted");
-            } catch(MalformedURLException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch(AttributeNotFoundException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch(InstanceNotFoundException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch(MBeanException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch(ReflectionException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch(IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch(MalformedObjectNameException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
             } finally {
-                addDatum(System.currentTimeMillis() + 1, 0, false);
+                for(Feed feed : activeComponents.values()) {
+                    addDatum(feed.getId(), System.currentTimeMillis() + 1, 0, false);
+                }
                 thread = null;
             }
         }
 
 
+        private boolean equals(Object a, Object b) {
+            return a == null ? b == null : a.equals(b);
+        }
+
+
         // TODO: Figure out how to stuff data into the other buffers
-        private void addDatum(long time, double value, boolean valid) {
+        private void addDatum(String feedID, long time, Object value, boolean valid) {
             Map<String, String> datum = new HashMap<String, String>();
             datum.put(FeedProvider.NORMALIZED_IS_VALID_KEY, Boolean.toString(valid));
             String status = valid ? " " : "S";
             Color c = valid ? GOOD_COLOR : LOS_COLOR;
-            RenderingInfo ri = new RenderingInfo(Double.toString(value), c, status, c, valid);
+            String valueString = value == null ? "" : value.toString();
+            RenderingInfo ri = new RenderingInfo(valueString, c, status, c, valid);
             ri.setPlottable(valid);
             datum.put(FeedProvider.NORMALIZED_RENDERING_INFO, ri.toString());
 
             datum.put(FeedProvider.NORMALIZED_TIME_KEY, Long.toString(time));
-            datum.put(FeedProvider.NORMALIZED_VALUE_KEY, Double.toString(value));
+            datum.put(FeedProvider.NORMALIZED_VALUE_KEY, valueString);
             datum.put(FeedProvider.NORMALIZED_TELEMETRY_STATUS_CLASS_KEY, "1");
 
             // TODO: Buffer data (for a short period) if the archive isn't available
             if(archive != null) {
                 try {
-                    archive.putData(TelemetryComponent.TelemetryPrefix + "edcec9ef06b844db94be1fefb7380fa4",
-                            TimeUnit.MILLISECONDS, time, datum);
+                    archive.putData(TelemetryComponent.TelemetryPrefix + feedID, TimeUnit.MILLISECONDS, time, datum);
                 } catch(BufferFullException e) {
                     // TODO: What do we do?
                     LOGGER.log(Level.SEVERE, e.toString(), e);
                 }
             }
+        }
+    }
+
+
+    public void start(TelemetryComponent component) throws IOException, MalformedObjectNameException {
+        synchronized(activeComponents) {
+            if(!activeComponents.containsKey(component)) {
+                activeComponents.put(component, new Feed(component));
+            }
+        }
+    }
+
+
+    public void stop(TelemetryComponent component) {
+        synchronized(activeComponents) {
+            Feed feed = activeComponents.remove(component);
+            if(feed != null) {
+                recentlyStoppedComponents.put(component, feed);
+            }
+        }
+    }
+
+
+    private class Feed {
+        private String attribute;
+
+        private ObjectName mbean;
+
+        private MBeanServerConnection connection;
+
+        private Object oldValue;
+
+        private boolean oldReachable;
+
+        private String id;
+
+
+        public Feed(TelemetryComponent component) throws IOException, MalformedObjectNameException {
+            TelemetryFeed model = component.getModel();
+            String jmxURL = model.getJmxURL();
+            synchronized(connections) {
+                MBeanServerConnection connection = connections.get(jmxURL);
+                if(connection == null) {
+                    JMXServiceURL url = new JMXServiceURL(jmxURL);
+                    JMXConnector jmxc = JMXConnectorFactory.connect(url, null);
+                    connection = jmxc.getMBeanServerConnection();
+                    connections.put(jmxURL, connection);
+                }
+                this.connection = connection;
+            }
+            this.attribute = model.getAttribute();
+            this.mbean = new ObjectName(model.getMbean());
+            this.id = component.getId();
+        }
+
+
+        public String getId() {
+            return id;
+        }
+
+
+        public String getAttribute() {
+            return attribute;
+        }
+
+
+        public ObjectName getMbean() {
+            return mbean;
+        }
+
+
+        public MBeanServerConnection getConnection() {
+            return connection;
+        }
+
+
+        public Object getOldValue() {
+            return oldValue;
+        }
+
+
+        public void setOldValue(Object oldValue) {
+            this.oldValue = oldValue;
+        }
+
+
+        public boolean isOldReachable() {
+            return oldReachable;
+        }
+
+
+        public void setOldReachable(boolean oldReachable) {
+            this.oldReachable = oldReachable;
         }
     }
 }
