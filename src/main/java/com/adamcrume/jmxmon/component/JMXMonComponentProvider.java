@@ -15,8 +15,10 @@ import java.util.Collections;
 import com.adamcrume.jmxmon.actions.AboutAction;
 import com.adamcrume.jmxmon.actions.ActivateAction;
 import com.adamcrume.jmxmon.actions.DeactivateAction;
+import com.adamcrume.jmxmon.telemetry.JVMComponent;
 import com.adamcrume.jmxmon.telemetry.TelemetryComponent;
 import com.adamcrume.jmxmon.view.JMXConfigView;
+import com.adamcrume.jmxmon.view.JVMEditView;
 
 public class JMXMonComponentProvider extends AbstractComponentProvider {
     private final ComponentTypeInfo telemetryComponentType =
@@ -25,11 +27,18 @@ public class JMXMonComponentProvider extends AbstractComponentProvider {
                 bundle.getString("component.feed.description"),
                 TelemetryComponent.class);
 
+    private final ComponentTypeInfo jvmComponentType =
+        new ComponentTypeInfo(
+                bundle.getString("component.jvm.name"),
+                bundle.getString("component.jvm.description"),
+                JVMComponent.class);
+
 
     @Override
     public Collection<ComponentTypeInfo> getComponentTypes() {
         return Arrays.asList(
-                telemetryComponentType
+                telemetryComponentType,
+				jvmComponentType
         );
     }
 
@@ -39,6 +48,10 @@ public class JMXMonComponentProvider extends AbstractComponentProvider {
         if(componentTypeId.equals(TelemetryComponent.class.getName())) {
             return Arrays.asList(
                     new ViewInfo(JMXConfigView.class, bundle.getString("view.feededit.title"), ViewType.OBJECT)
+            );
+        } else if(componentTypeId.equals(JVMComponent.class.getName())) {
+            return Arrays.asList(
+                    new ViewInfo(JVMEditView.class, bundle.getString("view.jvmedit.title"), ViewType.OBJECT)
             );
         }
         return Collections.emptyList();
