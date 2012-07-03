@@ -11,12 +11,6 @@ public class TelemetryFeed {
 
     private String description;
 
-    private String jmxURL;
-
-    private String mbean;
-
-    private String attribute;
-
 
     public void setId(String telemetryId) {
         this.telemetryId = telemetryId;
@@ -35,35 +29,5 @@ public class TelemetryFeed {
 
     public String getDescription() {
         return description;
-    }
-
-
-    public String getJmxURL() {
-        return jmxURL;
-    }
-
-
-    public void setJmxURL(String jmxURL) {
-        this.jmxURL = jmxURL;
-    }
-
-
-    public String getMbean() {
-        return mbean;
-    }
-
-
-    public void setMbean(String mbean) {
-        this.mbean = mbean;
-    }
-
-
-    public String getAttribute() {
-        return attribute;
-    }
-
-
-    public void setAttribute(String attribute) {
-        this.attribute = attribute;
     }
 }

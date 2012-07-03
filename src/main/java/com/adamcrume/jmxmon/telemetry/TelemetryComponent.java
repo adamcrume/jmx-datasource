@@ -125,24 +125,6 @@ public class TelemetryComponent extends AbstractComponent implements
         description.setFieldMutable(true);
         fields.add(description);
 
-        // TODO: Add validation
-        PropertyDescriptor jmxURL = new PropertyDescriptor(bundle.getString("feed.jmxurl.label"),
-                new StringPropertyEditor(model, "jmxURL"), VisualControlDescriptor.TextField);
-        jmxURL.setFieldMutable(true);
-        fields.add(jmxURL);
-
-        // TODO: Add validation
-        PropertyDescriptor mbean = new PropertyDescriptor(bundle.getString("feed.mbean.label"),
-                new StringPropertyEditor(model, "mbean"), VisualControlDescriptor.TextField);
-        mbean.setFieldMutable(true);
-        fields.add(mbean);
-
-        // TODO: Add validation
-        PropertyDescriptor attribute = new PropertyDescriptor(bundle.getString("feed.attribute.label"),
-                new StringPropertyEditor(model, "attribute"), VisualControlDescriptor.TextField);
-        attribute.setFieldMutable(true);
-        fields.add(attribute);
-
         return fields;
     }
 }

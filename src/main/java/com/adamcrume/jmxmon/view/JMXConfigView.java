@@ -26,12 +26,6 @@ import com.adamcrume.jmxmon.telemetry.TelemetryFeed;
 public final class JMXConfigView extends View {
     private JTextField descriptionField;
 
-    private JTextField jmxURLField;
-
-    private JTextField mbeanField;
-
-    private JTextField attributeField;
-
     private TelemetryFeed model = ((TelemetryComponent) getManifestedComponent()).getModel();
 
 
@@ -60,27 +54,6 @@ public final class JMXConfigView extends View {
         descriptionLabel.setLabelFor(descriptionField);
         panel.add(descriptionField, gbcField);
 
-        JLabel jmxURLLabel = new JLabel(bundle.getString("feed.jmxurl.label"));
-        panel.add(jmxURLLabel, gbcLabel);
-        jmxURLField = new JTextField();
-        jmxURLField.setToolTipText(bundle.getString("feed.jmxurl.tooltip"));
-        jmxURLLabel.setLabelFor(jmxURLField);
-        panel.add(jmxURLField, gbcField);
-
-        JLabel mbeanLabel = new JLabel(bundle.getString("feed.mbean.label"));
-        panel.add(mbeanLabel, gbcLabel);
-        mbeanField = new JTextField();
-        mbeanField.setToolTipText(bundle.getString("feed.mbean.tooltip"));
-        mbeanLabel.setLabelFor(mbeanField);
-        panel.add(mbeanField, gbcField);
-
-        JLabel attributeLabel = new JLabel(bundle.getString("feed.attribute.label"));
-        panel.add(attributeLabel, gbcLabel);
-        attributeField = new JTextField();
-        attributeField.setToolTipText(bundle.getString("feed.attribute.tooltip"));
-        attributeLabel.setLabelFor(attributeField);
-        panel.add(attributeField, gbcField);
-
         GridBagConstraints gbcButton = (GridBagConstraints) gbcField.clone();
         gbcButton.fill = GridBagConstraints.NONE;
         JButton saveButton = new JButton(bundle.getString("button.save"));
@@ -91,9 +64,6 @@ public final class JMXConfigView extends View {
             public void actionPerformed(ActionEvent e) {
                 final AbstractComponent component = getManifestedComponent();
                 model.setDescription(descriptionField.getText());
-                model.setJmxURL(jmxURLField.getText());
-                model.setMbean(mbeanField.getText());
-                model.setAttribute(attributeField.getText());
 
                 PersistenceProvider provider = PlatformAccess.getPlatform().getPersistenceProvider();
                 boolean successfulAction = false;
@@ -117,8 +87,5 @@ public final class JMXConfigView extends View {
     @Override
     public void updateMonitoredGUI() {
         descriptionField.setText(model.getDescription());
-        jmxURLField.setText(model.getJmxURL());
-        mbeanField.setText(model.getMbean());
-        attributeField.setText(model.getAttribute());
     }
 }
