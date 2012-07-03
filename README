@@ -1,0 +1,41 @@
+JMX Datasource for MCT
+======================
+
+To build and install:
+1. Unpack or check out MCT sources into some folder, $(MCT).
+2. Build and install MCT with Maven
+   2.1 cd $(MCT)/platform-assembly
+   2.2 mvn install -DskipTests
+3. Build and install jmx-datasource with Maven
+   3.1 cd $(JMX_DATASOURCE)
+   3.2 mvn install
+4. Untar $(MCT)/platform-assembly/target/mct-platform-X.X.X-dist.tar.gz 
+   into a build folder, $(BUILD).
+5. (Optional) In $(BUILD)/mct-platform-X.X.X/resources/plugins,
+   remove exampleplugin-X.X.X.jar
+6. Copy $(JMX_DATASOURCE)/target/jmxmon-X.X.X.jar to
+   $(BUILD)/mct-platform-X.X.X/resources/plugins
+7. Follow MCT instructions for setting up a database
+   (https://sites.google.com/site/openmct/documentation/configuration),
+   using $(BUILD/mct-platform-X.X.X as the installation directory
+
+Once MCT is configured and launched, set up a feed:
+1. Enter JVM information
+   1.1 Right-click on My Sandbox, select Create > JVM, and name it
+   1.2 Select the JVM if it is not already selected
+   1.3 Enter the JMX URL for the connection and click Save
+2. Enter the MBean information
+   2.1 Right-click on My Sandbox, select Create > MBean Descriptor, and 
+       name it
+   2.2 Select the MBean Descriptor if it is not already selected
+   2.3 Enter the object name of the MBean as well as the name of the
+       attribute to poll, and click Save
+3. Set up the feed
+   3.1 Right-click on My Sandbox, select Create > JMX Feed, and name it
+   3.2 In the directory tree, drag the JVM and MBean Descriptor onto the
+       JMX Feed to make them children.  They will not disappear from
+       their original places in the tree.
+4. Right-click on the JMX Feed and select Activate JMX Feed(s)
+
+Data should soon appear in the Plot tab, in the Inspector panel.
+Only step 4 needs to be repeated the next time MCT is launched.
