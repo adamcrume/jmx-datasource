@@ -28,8 +28,12 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.regex.Pattern;
 
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -50,6 +54,7 @@ public final class BeanDescriptorEditView extends View {
         super(component, info);
 
         final JPanel panel = new JPanel();
+        Form form = new Form();
         GridBagLayout layout = new GridBagLayout();
         panel.setLayout(layout);
         GridBagConstraints gbcLabel = new GridBagConstraints();
@@ -68,6 +73,18 @@ public final class BeanDescriptorEditView extends View {
         beanField = new JTextField();
         beanField.setToolTipText(bundle.getString("bean_descriptor.bean.tooltip"));
         beanLabel.setLabelFor(beanField);
+        form.addValidator(beanField, new Validator() {
+            @Override
+            public String validate(JComponent field) {
+                String s = ((JTextField) field).getText();
+                try {
+                    new ObjectName(s);
+                    return null;
+                } catch(MalformedObjectNameException e) {
+                    return "Malformed ObjectName";
+                }
+            }
+        });
         panel.add(beanField, gbcField);
 
         JLabel attributeLabel = new JLabel(bundle.getString("bean_descriptor.attribute.label"));
@@ -75,12 +92,34 @@ public final class BeanDescriptorEditView extends View {
         attributeField = new JTextField();
         attributeField.setToolTipText(bundle.getString("bean_descriptor.attribute.tooltip"));
         attributeLabel.setLabelFor(attributeField);
+        form.addValidator(attributeField, new Validator() {
+            // TODO: Handle all valid Java identifiers
+            String javaIdentifierStart = "[a-zA-Z_]";
+
+            String javaIdentifierPart = "[a-zA-Z0-9_]";
+
+            String javaIdentifier = javaIdentifierStart + javaIdentifierPart + "*";
+
+            Pattern p = Pattern.compile(javaIdentifier + "(\\." + javaIdentifier + ")*");
+
+
+            @Override
+            public String validate(JComponent field) {
+                String s = ((JTextField) field).getText();
+                if(p.matcher(s).matches()) {
+                    return null;
+                } else {
+                    return "Invalid attribute specification";
+                }
+            }
+        });
         panel.add(attributeField, gbcField);
 
         GridBagConstraints gbcButton = (GridBagConstraints) gbcField.clone();
         gbcButton.fill = GridBagConstraints.NONE;
         JButton saveButton = new JButton(bundle.getString("button.save"));
         panel.add(saveButton, gbcButton);
+        form.setSaveButton(saveButton);
 
         saveButton.addActionListener(new ActionListener() {
             @Override

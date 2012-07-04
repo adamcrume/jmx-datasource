@@ -28,8 +28,11 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.net.MalformedURLException;
 
+import javax.management.remote.JMXServiceURL;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -48,6 +51,8 @@ public final class JVMEditView extends View {
         super(component, info);
 
         final JPanel panel = new JPanel();
+        Form form = new Form();
+
         GridBagLayout layout = new GridBagLayout();
         panel.setLayout(layout);
         GridBagConstraints gbcLabel = new GridBagConstraints();
@@ -67,12 +72,25 @@ public final class JVMEditView extends View {
         jmxURLField = new JTextField();
         jmxURLField.setToolTipText(bundle.getString("jvm.jmxURL.tooltip"));
         jmxURLLabel.setLabelFor(jmxURLField);
+        form.addValidator(jmxURLField, new Validator() {
+            @Override
+            public String validate(JComponent field) {
+                String s = ((JTextField) field).getText();
+                try {
+                    new JMXServiceURL(s);
+                    return null;
+                } catch(MalformedURLException e) {
+                    return "Malformed URL";
+                }
+            }
+        });
         panel.add(jmxURLField, gbcField);
 
         GridBagConstraints gbcButton = (GridBagConstraints) gbcField.clone();
         gbcButton.fill = GridBagConstraints.NONE;
         JButton saveButton = new JButton(bundle.getString("button.save"));
         panel.add(saveButton, gbcButton);
+        form.setSaveButton(saveButton);
 
         saveButton.addActionListener(new ActionListener() {
             @Override
