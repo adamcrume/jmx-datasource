@@ -18,6 +18,8 @@ package com.adamcrume.jmxmon.component;
 import static com.adamcrume.jmxmon.JMXMon.bundle;
 import gov.nasa.arc.mct.gui.MenuItemInfo;
 import gov.nasa.arc.mct.gui.MenuItemInfo.MenuItemType;
+import gov.nasa.arc.mct.policy.PolicyInfo;
+import gov.nasa.arc.mct.policy.PolicyInfo.CategoryType;
 import gov.nasa.arc.mct.services.component.AbstractComponentProvider;
 import gov.nasa.arc.mct.services.component.ComponentTypeInfo;
 import gov.nasa.arc.mct.services.component.ViewInfo;
@@ -102,6 +104,15 @@ public class JMXMonComponentProvider extends AbstractComponentProvider {
                         "DEACTIVATE_ACTION", //NO18N
                         MenuItemType.NORMAL,
                         DeactivateAction.class)
+        );
+    }
+
+
+    @Override
+    public Collection<PolicyInfo> getPolicyInfos() {
+        return Arrays.asList(
+                new PolicyInfo(CategoryType.ACCEPT_DELEGATE_MODEL_CATEGORY.getKey(),
+                        FeedChildPolicy.class)
         );
     }
 }
