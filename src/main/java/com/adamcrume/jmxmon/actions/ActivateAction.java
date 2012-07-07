@@ -19,6 +19,7 @@ import static com.adamcrume.jmxmon.JMXMon.bundle;
 import gov.nasa.arc.mct.components.AbstractComponent;
 import gov.nasa.arc.mct.gui.ActionContext;
 import gov.nasa.arc.mct.gui.ContextAwareAction;
+import gov.nasa.arc.mct.gui.OptionBox;
 import gov.nasa.arc.mct.gui.View;
 
 import java.awt.event.ActionEvent;
@@ -27,7 +28,9 @@ import java.util.Collection;
 
 import javax.management.MalformedObjectNameException;
 
+import com.adamcrume.jmxmon.telemetry.BeanDescriptorComponent;
 import com.adamcrume.jmxmon.telemetry.DataPoller;
+import com.adamcrume.jmxmon.telemetry.JVMComponent;
 import com.adamcrume.jmxmon.telemetry.TelemetryComponent;
 
 @SuppressWarnings("serial")
@@ -45,23 +48,52 @@ public class ActivateAction extends ContextAwareAction {
     }
 
 
+    private boolean isActivatable(AbstractComponent c) {
+        if(!(c instanceof TelemetryComponent)) {
+            return false;
+        }
+        int jvmCount = 0;
+        int beanCount = 0;
+        int otherCount = 0;
+        for(AbstractComponent child : c.getComponents()) {
+            if(child instanceof JVMComponent) {
+                jvmCount++;
+            } else if(child instanceof BeanDescriptorComponent) {
+                beanCount++;
+            } else {
+                otherCount++;
+            }
+        }
+        return jvmCount == 1 && beanCount == 1 && otherCount == 0;
+    }
+
+
     @Override
     public void actionPerformed(ActionEvent e) {
         DataPoller dataPoller = DataPoller.getInstance();
+        int skippedFeedCount = 0;
         for(View view : selectedManifestations) {
             AbstractComponent manifestedComponent = view.getManifestedComponent();
             if(manifestedComponent instanceof TelemetryComponent) {
-                TelemetryComponent component = (TelemetryComponent) manifestedComponent;
-                try {
-                    dataPoller.start(component);
-                } catch(MalformedObjectNameException e1) {
-                    // TODO Auto-generated catch block
-                    e1.printStackTrace();
-                } catch(IOException e1) {
-                    // TODO Auto-generated catch block
-                    e1.printStackTrace();
+                if(isActivatable(manifestedComponent)) {
+                    TelemetryComponent component = (TelemetryComponent) manifestedComponent;
+                    try {
+                        dataPoller.start(component);
+                    } catch(MalformedObjectNameException e1) {
+                        // TODO Auto-generated catch block
+                        e1.printStackTrace();
+                    } catch(IOException e1) {
+                        // TODO Auto-generated catch block
+                        e1.printStackTrace();
+                    }
+                } else {
+                    skippedFeedCount++;
                 }
             }
+        }
+        if(skippedFeedCount > 0) {
+            OptionBox.showMessageDialog(null, bundle.getString("warning.feedsNotActivated"), bundle
+                    .getString("warning.feedsNotActivated.title"), OptionBox.WARNING_MESSAGE);
         }
         selectedManifestations = null;
     }
@@ -71,7 +103,7 @@ public class ActivateAction extends ContextAwareAction {
     public boolean canHandle(ActionContext context) {
         selectedManifestations = context.getSelectedManifestations();
         for(View view : selectedManifestations) {
-            if(view.getManifestedComponent() instanceof TelemetryComponent) {
+            if(isActivatable(view.getManifestedComponent())) {
                 return true;
             }
         }
