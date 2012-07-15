@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.adamcrume.jmxmon.component.StringPropertyEditor;
+import com.adamcrume.jmxmon.view.LongPropertyEditor;
 
 public class TelemetryComponent extends AbstractComponent implements
 		FeedProvider {	
@@ -77,7 +78,7 @@ public class TelemetryComponent extends AbstractComponent implements
 	
 	@Override
 	public int getMaximumSampleRate() {
-		return 1;
+		return (int) (1 + 1000 / model.get().getPollingInterval());
 	}
 
 	@Override
@@ -139,6 +140,11 @@ public class TelemetryComponent extends AbstractComponent implements
                 new StringPropertyEditor(model, "description"), VisualControlDescriptor.TextField);
         description.setFieldMutable(true);
         fields.add(description);
+
+        PropertyDescriptor pollingInterval = new PropertyDescriptor(bundle.getString("feed.pollingInterval.label"),
+                new LongPropertyEditor(model, "pollingInterval"), VisualControlDescriptor.TextField);
+        description.setFieldMutable(true);
+        fields.add(pollingInterval);
 
         return fields;
     }

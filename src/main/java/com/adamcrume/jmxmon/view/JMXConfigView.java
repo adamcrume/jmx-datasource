@@ -29,7 +29,10 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
@@ -41,6 +44,8 @@ import com.adamcrume.jmxmon.telemetry.TelemetryFeed;
 public final class JMXConfigView extends View {
     private JTextField descriptionField;
 
+    private JTextField pollingIntervalField;
+
     private TelemetryFeed model = ((TelemetryComponent) getManifestedComponent()).getModel();
 
 
@@ -49,6 +54,7 @@ public final class JMXConfigView extends View {
         super(component, info);
 
         final JPanel panel = new JPanel();
+        Form form = new Form();
         GridBagLayout layout = new GridBagLayout();
         panel.setLayout(layout);
         GridBagConstraints gbcLabel = new GridBagConstraints();
@@ -69,16 +75,48 @@ public final class JMXConfigView extends View {
         descriptionLabel.setLabelFor(descriptionField);
         panel.add(descriptionField, gbcField);
 
+        JLabel pollingIntervalLabel = new JLabel(bundle.getString("feed.pollingInterval.label"));
+        panel.add(pollingIntervalLabel, gbcLabel);
+        pollingIntervalField = new JTextField();
+        pollingIntervalField.setToolTipText(bundle.getString("feed.pollingInterval.tooltip"));
+        pollingIntervalLabel.setLabelFor(pollingIntervalField);
+        form.addValidator(pollingIntervalField, new Validator() {
+            @Override
+            public String validate(JComponent field) {
+                String s = ((JTextField) field).getText();
+                if("".equals(s)) {
+                    return "Polling interval is required"; // TODO: I18N
+                }
+                long val;
+                try {
+                    val = Long.parseLong(s);
+                } catch(NumberFormatException e) {
+                    return "Polling interval must be an integer";
+                }
+                if(val <= 0) {
+                    return "Polling interval must be positive";
+                }
+                // TODO: This check is purely to keep the user from shooting him/herself in the foot by flooding the server.  Make it a warning, or make it disable-able.
+                if(val < 100) {
+                    return "Polling interval must be at least 100ms";
+                }
+                return null;
+            }
+        });
+        panel.add(pollingIntervalField, gbcField);
+
         GridBagConstraints gbcButton = (GridBagConstraints) gbcField.clone();
         gbcButton.fill = GridBagConstraints.NONE;
         JButton saveButton = new JButton(bundle.getString("button.save"));
         panel.add(saveButton, gbcButton);
+        form.setSaveButton(saveButton);
 
         saveButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 final AbstractComponent component = getManifestedComponent();
                 model.setDescription(descriptionField.getText());
+                model.setPollingInterval(Long.valueOf(pollingIntervalField.getText()));
 
                 PersistenceProvider provider = PlatformAccess.getPlatform().getPersistenceProvider();
                 boolean successfulAction = false;
@@ -102,5 +140,6 @@ public final class JMXConfigView extends View {
     @Override
     public void updateMonitoredGUI() {
         descriptionField.setText(model.getDescription());
+        pollingIntervalField.setText(String.valueOf(model.getPollingInterval()));
     }
 }

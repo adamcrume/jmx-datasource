@@ -26,6 +26,8 @@ public class TelemetryFeed {
 
     private String description;
 
+    private long pollingInterval = 1000;
+
 
     public void setId(String telemetryId) {
         this.telemetryId = telemetryId;
@@ -44,5 +46,15 @@ public class TelemetryFeed {
 
     public String getDescription() {
         return description;
+    }
+
+
+    public long getPollingInterval() {
+        return pollingInterval;
+    }
+
+
+    public void setPollingInterval(long pollingInterval) {
+        this.pollingInterval = pollingInterval;
     }
 }

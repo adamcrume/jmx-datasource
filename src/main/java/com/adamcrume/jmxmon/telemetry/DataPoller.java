@@ -123,11 +123,16 @@ public class DataPoller {
                         recentlyStoppedComponents.clear();
                     }
                     for(Feed feed : feeds) {
+                        long now = System.currentTimeMillis();
+                        if(feed.getNextPollTime() > now) {
+                            continue;
+                        }
                         boolean reachable = false;
                         Object value = null;
                         try {
                             MBeanServerConnection connection = feed.getConnection();
                             String attribute = feed.getAttribute();
+                            LOGGER.finest("Polling " + attribute);
                             String[] parts = attribute.split("\\.");
                             value = connection.getAttribute(feed.getMbean(), parts[0]);
                             for(int i = 1; i < parts.length; i++) {
@@ -147,25 +152,36 @@ public class DataPoller {
                         } catch(IOException e) {
                             LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
                         }
-                        long time = System.currentTimeMillis();
+                        now = System.currentTimeMillis();
                         Object oldValue = feed.getOldValue();
                         if(!equals(value, oldValue) || reachable != feed.isOldReachable()) {
                             if(!reachable) {
                                 // This just reduces the occurrence of invalid string encodings.
                                 value = oldValue;
                             }
-                            addDatum(feed.getId(), time, value, reachable);
+                            addDatum(feed.getId(), now, value, reachable);
                             used++;
                         }
                         feed.setOldValue(oldValue);
                         feed.setOldReachable(reachable);
+                        feed.setNextPollTime(now + feed.getPollingInterval());
                         count++;
                     }
+                    long nextPollTime = Long.MAX_VALUE;
+                    for(Feed feed : feeds) {
+                        nextPollTime = Math.min(nextPollTime, feed.getNextPollTime());
+                    }
+                    long now = System.currentTimeMillis();
                     for(Feed feed : feedsToStop) {
-                        addDatum(feed.getId(), System.currentTimeMillis() + 1, 0, false);
+                        addDatum(feed.getId(), now + 1, 0, false);
                     }
                     LOGGER.finest("Using " + (100.0 * used / count) + "% of values");
-                    Thread.sleep(1000);
+                    long wait = nextPollTime - now;
+                    if(wait > 0) {
+                        synchronized(activeComponents) {
+                            activeComponents.wait(wait);
+                        }
+                    }
                 }
             } catch(InterruptedException e) {
                 LOGGER.info(getClass() + " Interrupted");
@@ -215,6 +231,7 @@ public class DataPoller {
         synchronized(activeComponents) {
             if(!activeComponents.containsKey(component)) {
                 activeComponents.put(component, new Feed(component));
+                activeComponents.notifyAll();
             }
         }
     }
@@ -225,6 +242,7 @@ public class DataPoller {
             Feed feed = activeComponents.remove(component);
             if(feed != null) {
                 recentlyStoppedComponents.put(component, feed);
+                activeComponents.notifyAll();
             }
         }
     }
@@ -242,6 +260,10 @@ public class DataPoller {
         private boolean oldReachable;
 
         private String id;
+
+        private long nextPollTime = System.currentTimeMillis();
+
+        private long pollingInterval;
 
 
         public Feed(TelemetryComponent component) throws IOException, MalformedObjectNameException {
@@ -270,6 +292,7 @@ public class DataPoller {
             this.attribute = bd.getModel().getAttribute();
             this.mbean = new ObjectName(bd.getModel().getBean());
             this.id = component.getId();
+            this.pollingInterval = component.getModel().getPollingInterval();
         }
 
 
@@ -310,6 +333,20 @@ public class DataPoller {
 
         public void setOldReachable(boolean oldReachable) {
             this.oldReachable = oldReachable;
+        }
+
+
+        public long getNextPollTime() {
+            return nextPollTime;
+        }
+
+
+        public void setNextPollTime(long nextPollTime) {
+            this.nextPollTime = nextPollTime;
+        }
+
+        public long getPollingInterval() {
+            return pollingInterval;
         }
     }
 }
