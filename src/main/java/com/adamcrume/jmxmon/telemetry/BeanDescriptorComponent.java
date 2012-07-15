@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.adamcrume.jmxmon.component.StringPropertyEditor;
+import com.adamcrume.jmxmon.view.StringPropertyEditor;
 
 public class BeanDescriptorComponent extends AbstractComponent {
     private AtomicReference<BeanDescriptor> model = new AtomicReference<BeanDescriptor>(new BeanDescriptor());

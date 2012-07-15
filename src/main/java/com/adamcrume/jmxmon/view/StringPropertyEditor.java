@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *******************************************************************************/
-package com.adamcrume.jmxmon.component;
+package com.adamcrume.jmxmon.view;
 
 import gov.nasa.arc.mct.components.PropertyEditor;
 

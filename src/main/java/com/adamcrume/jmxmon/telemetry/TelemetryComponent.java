@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.adamcrume.jmxmon.component.StringPropertyEditor;
 import com.adamcrume.jmxmon.view.LongPropertyEditor;
+import com.adamcrume.jmxmon.view.StringPropertyEditor;
 
 public class TelemetryComponent extends AbstractComponent implements
 		FeedProvider {	
