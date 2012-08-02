@@ -23,7 +23,6 @@ import gov.nasa.arc.mct.components.FeedProvider.RenderingInfo;
 
 import java.awt.Color;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -33,19 +32,27 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.management.AttributeNotFoundException;
-import javax.management.InstanceNotFoundException;
-import javax.management.MBeanException;
+import javax.el.BeanELResolver;
+import javax.el.CompositeELResolver;
+import javax.el.ELContext;
+import javax.el.ELException;
+import javax.el.ExpressionFactory;
+import javax.el.FunctionMapper;
+import javax.el.ValueExpression;
+import javax.el.VariableMapper;
 import javax.management.MBeanServerConnection;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-import javax.management.ReflectionException;
-import javax.management.openmbean.CompositeDataSupport;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 
 import org.osgi.framework.BundleContext;
+
+import com.adamcrume.jmxmon.el.CompositeDataResolver;
+import com.adamcrume.jmxmon.el.MBeanAttributeVariableMapper;
+import com.adamcrume.jmxmon.el.SimpleContext;
+import com.adamcrume.jmxmon.el.SimpleFunctionMapper;
 
 public class DataPoller {
     private static final Logger LOGGER = Logger.getLogger(DataPoller.class.getName());
@@ -66,6 +73,8 @@ public class DataPoller {
     private Map<TelemetryComponent, Feed> recentlyStoppedComponents = new HashMap<TelemetryComponent, Feed>();
 
     private Map<String, MBeanServerConnection> connections = new HashMap<String, MBeanServerConnection>();
+
+    private ExpressionFactory expressionFactory;
 
 
     @Deprecated
@@ -108,12 +117,30 @@ public class DataPoller {
     }
 
 
+    // called by declarative services
+    @SuppressWarnings("unused")
+    private void setExpressionFactory(ExpressionFactory expressionFactory) {
+        this.expressionFactory = expressionFactory;
+    }
+
+
+    // called by declarative services
+    @SuppressWarnings("unused")
+    private void releaseExpressionFactory(ExpressionFactory expressionFactory) {
+        this.expressionFactory = null;
+    }
+
+
     private class Poller implements Runnable {
         @Override
         public void run() {
             try {
                 int count = 0;
                 int used = 0;
+                FunctionMapper functionMapper = new SimpleFunctionMapper();
+                CompositeELResolver resolver = new CompositeELResolver();
+                resolver.add(new CompositeDataResolver());
+                resolver.add(new BeanELResolver());
                 while(true) {
                     Set<Feed> feeds;
                     Set<Feed> feedsToStop;
@@ -133,23 +160,13 @@ public class DataPoller {
                             MBeanServerConnection connection = feed.getConnection();
                             String attribute = feed.getAttribute();
                             LOGGER.finest("Polling " + attribute);
-                            String[] parts = attribute.split("\\.");
-                            value = connection.getAttribute(feed.getMbean(), parts[0]);
-                            for(int i = 1; i < parts.length; i++) {
-                                value = ((CompositeDataSupport) value).get(parts[i]);
-                            }
+                            ObjectName mbean = feed.getMbean();
+                            VariableMapper variableMapper = new MBeanAttributeVariableMapper(connection, mbean);
+                            ELContext context = new SimpleContext(functionMapper, resolver, variableMapper);
+                            ValueExpression ve = expressionFactory.createValueExpression(context,"${"+ attribute+"}", Object.class);
+                            value = ve.getValue(context);
                             reachable = true;
-                        } catch(MalformedURLException e) {
-                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
-                        } catch(AttributeNotFoundException e) {
-                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
-                        } catch(InstanceNotFoundException e) {
-                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
-                        } catch(MBeanException e) {
-                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
-                        } catch(ReflectionException e) {
-                            LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
-                        } catch(IOException e) {
+                        } catch(ELException e) {
                             LOGGER.log(Level.INFO, "Error reading MBean: " + e, e);
                         }
                         now = System.currentTimeMillis();

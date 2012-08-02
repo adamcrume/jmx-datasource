@@ -24,6 +24,12 @@ limitations under the License.
 			unbind="releaseDataArchive"
 			cardinality="1..1"
 			policy="dynamic"/>
+		<reference name="expressionFactory"
+			interface="javax.el.ExpressionFactory"
+			bind="setExpressionFactory"
+			unbind="releaseExpressionFactory"
+			cardinality="1..1"
+			policy="dynamic"/>
 	</scr:component>
 	<scr:component name="com.adamcrume.jmxmon.component.JMXMonComponentProvider">
 		<implementation class="com.adamcrume.jmxmon.component.JMXMonComponentProvider" />
